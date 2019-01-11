@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 use Slim\App;
 use Slim\Container;
+use GuzzleHttp\Client as GuzzleClient;
+use Vetero\Api\ApiFactory;
 use Vetero\Controllers\WeatherController;
 use Vetero\Middleware\AuthorizationMiddleware;
 use Vetero\Models\AuthorizationModel;
@@ -25,6 +27,16 @@ $c['db'] = function (Container $c): PDO {
     $pdo = new PDO(getenv('DB_DSN'), getenv('DB_USERNAME'), getenv('DB_PASSWORD'));
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     return $pdo;
+};
+
+$c['GuzzleClient'] = function (Container $c): GuzzleClient {
+    return new GuzzleClient([
+        'timeout' => getenv('HTTP_REQUEST_TIMEOUT')
+    ]);
+};
+
+$c['ApiFactory'] = function (Container $c): ApiFactory {
+    return new ApiFactory($c);
 };
 
 $c['WeatherController'] = function (Container $c): WeatherController {
