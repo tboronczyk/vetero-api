@@ -6,10 +6,10 @@ namespace Vetero\Api;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Class GeoNames
+ * Class GeoNamesApi
  * @package Vetero\Api
  */
-class GeoNames extends Api
+class GeoNamesApi extends Api
 {
     /**
      * Retrieve the name information for the given location.

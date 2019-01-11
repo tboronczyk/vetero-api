@@ -14,6 +14,9 @@ class Api
 {
     protected $container;
 
+    /** @var \Monolog\Logger */
+    protected $logger;
+
     /**
      * Constructor
      *
@@ -22,6 +25,7 @@ class Api
     public function __construct(Container $c)
     {
         $this->container = $c;
+        $this->logger = $c->get('Logger');
     }
 
     /**
@@ -32,6 +36,7 @@ class Api
      */
     protected function doGet(string $url): ResponseInterface
     {
+        $this->logger->debug('Performing GET request', ['url' => $url]);
         return $this->container['GuzzleClient']->request('GET', $url);
     }
 }

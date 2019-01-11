@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Vetero\Models;
 
 use Slim\Container;
+use Vetero\Api\DarkSky;
 
 /**
  * Class WeatherModel
@@ -12,7 +13,7 @@ use Slim\Container;
 class WeatherModel extends Model
 {
     /**
-     * Return the current weather for the given location.
+     * Return the current weather for a given location.
      *
      * Example of returned array:
      * [
@@ -35,13 +36,14 @@ class WeatherModel extends Model
      *             "temp_high" => 26,
      *             "temp_low" => 15,
      *             "time" => 1547096400
-     *         ]
+     *         ],
      *         2 => [
      *             "description" => "partly-cloudy-day",
      *             "temp_high" => 21,
      *             "temp_low" => 17,
      *             "time" => 1547182800
-     *         ]
+     *         ],
+     *         ...
      *     ]
      * ]
      *
@@ -49,45 +51,85 @@ class WeatherModel extends Model
      * @param float $lon
      * @return array
      */
-    public function getWeather(float $lat, float $lon): array {
-        $weather = $this->queryColumn(
-            'SELECT weather FROM weather WHERE lat = ? AND lon = ?',
-            [$lat, $lon]
-        );
+    public function getWeather(float $lat, float $lon): array
+    {
+        $this->logger->info('Weather requested', ['lat' => $lat, 'lon' => $lon]);
 
+        try {
+            $weather = $this->queryColumn(
+                'SELECT weather FROM weather WHERE lat = ? AND lon = ?',
+                [$lat, $lon]
+            );
+        } catch (\PDOException $e) {
+            $this->logger->error(
+                'Failed to retrieve weather from database',
+                ['lat' => $lat, 'lon' => $lon, 'msg' => $e->getMessage()]
+            );
+        }
+        if (!empty($weather)) {
+            $this->logger->info('Weather returned from database');
+            return json_decode($weather, true);
+        }
+
+        // existing weather data was not found in the database - retrieve it
+        // from the API
+        try {
+            $weather = $this->getWeatherFromApi($lat, $lon);
+        } catch (\Exception $e) {
+            $this->logger->error(
+                'Network error retrieving weather from API',
+                ['lat' => $lat, 'lon' => $lon, 'msg' => $e->getMessage()]
+            );
+            return [];
+        }
         if (empty($weather)) {
-            $response = $this->getWeatherFromApi($lat, $lon);
-            $weather = $this->parseApiWeatherResponse($response);
+            return [];
+        }
 
+        // save the weather data for future lookups
+        try {
             $this->query(
                 'INSERT INTO weather (lat, lon, weather, updated)
-                    VALUES (?, ?, ?, ?)',
+                VALUES (?, ?, ?, ?)',
                 [$lat, $lon, json_encode($weather), time()]
+            );
+        } catch (\PDOException $e) {
+            $this->logger->error(
+                'Failed to save weather to database',
+                ['lat' => $lat, 'lon' => $lon, 'msg' => $e->getMessage()]
             );
         }
 
-        if (is_string($weather)) {
-            $weather = json_decode($weather, true);
-        }
-
+        $this->logger->info('Weather returned from API');
         return $weather;
     }
 
     /**
-     * Retrieve the current weather for the given location from the API.
+     * Retrieve the current weather for a given location from the API.
      *
      * @param float $lat
      * @param float $lon
      * @return array
+     * @throws \GuzzleHttp\Exception\ConnectException on network error
      */
     protected function getWeatherFromApi(float $lat, float $lon): array
     {
-        $url = 'https://api.darksky.net/forecast/' .
-            sprintf('%s/%01.2f,%01.2f', getenv('DARKSKY_API_SECRET'), $lat, $lon) .
-            '?lang=en&units=us&exclude=minutely,hourly,alerts,flags';
-        $response = file_get_contents($url);
+        $api = $this->container['DarkSkyApi'];
+        try {
+            $resp = $api->getWeather($lat, $lon);
+        } catch (\GuzzleHttp\Exception\BadResponseException $e) {
+            // catches 4xx-5xx status range - network errors are not caught
+            $this->logger->error(
+                'Failed to retrieve weather from API',
+                ['lat' => $lat, 'lon' => $lon, 'msg' => $e->getMessage()]
+            );
+            return [];
+        }
 
-        return json_decode($response, true);
+        $body = json_decode((string)$resp->getBody(), true);
+
+        $weather = $this->parseApiWeatherResponse($body);
+        return $weather;
     }
 
     /**
@@ -108,7 +150,7 @@ class WeatherModel extends Model
             'time' => (int)$current['time']
         ];
 
-        $maxDays = 3;
+        $maxDays = 5;
         for ($i = 0; $i < $maxDays; $i++) {
             $daily = $response['daily']['data'][$i];
             $weather['forecast'][] = [

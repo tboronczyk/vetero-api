@@ -22,9 +22,13 @@ class WeatherController extends Controller
      */
     public function getWeather(Request $req, Response $resp, array $args): Response
     {
-        // two decimal places is sufficient
+        // two decimal places should be sufficient
         $lat = round(floatval($args['lat']), 2);
         $lon = round(floatval($args['lon']), 2);
+
+        if ($lat < -90.0 || $lat > 90.0 || $lon < -180.0 || $lon > 180.0) {
+            return $resp->withJson(['error' => 'invalid latitude/longitude'], 400);
+        }
 
         $location = $this->container->get('LocationsModel')->getLocation($lat, $lon);
         $weather = $this->container->get('WeatherModel')->getWeather($lat, $lon);

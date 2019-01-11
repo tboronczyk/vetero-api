@@ -6,10 +6,10 @@ namespace Vetero\Api;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Class DarkSky
+ * Class DarkSkyApi
  * @package Vetero\Api
  */
-class DarkSky extends Api
+class DarkSkyApi extends Api
 {
     /**
      * Retrieve the current weather for the given location.

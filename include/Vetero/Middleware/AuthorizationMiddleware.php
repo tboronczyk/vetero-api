@@ -44,6 +44,7 @@ class AuthorizationMiddleware extends Middleware
             return $next($req, $resp);
         }
 
+        usleep(rand(1, 300) * 10000);
         return $resp->withStatus(401)->withHeader('WWW-Authenticate', 'Bearer');
     }
 }

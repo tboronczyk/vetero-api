@@ -4,7 +4,8 @@
         "ext-pdo_mysql": "*",
         "slim/slim": "^3.10",
         "vlucas/phpdotenv": "^2.5",
-        "guzzlehttp/guzzle": "^6.3"
+        "guzzlehttp/guzzle": "^6.3",
+        "monolog/monolog": "^1.24"
     },
     "autoload": {
         "psr-4": {

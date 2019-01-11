@@ -12,7 +12,12 @@ use Slim\Container;
 class Model
 {
     protected $container;
+
+    /** @var \PDO $db */
     protected $db;
+
+    /** @var \Monolog\Logger */
+    protected $logger;
 
     /**
      * Constructor
@@ -23,6 +28,24 @@ class Model
     {
         $this->container = $c;
         $this->db = $c->get('db');
+        $this->logger = $c->get('Logger');
+    }
+
+    /**
+     * Prepare and execute a prepared statement.
+     *
+     * @param string $query
+     * @param array|null $params
+     * @return \PDOStatement
+     * @throws \PDOException
+     */
+    private function stmt(string $query, ?array $params = null): \PDOStatement
+    {
+        $this->logger->debug('Executing query', ['query' => $query, 'params' => $params]);
+
+        $stmt = $this->db->prepare($query);
+        $stmt->execute($params);
+        return $stmt;
     }
 
     /**
@@ -30,11 +53,11 @@ class Model
      *
      * @param string $query
      * @param array|null $params
+     * @throws \PDOException
      */
     protected function query(string $query, ?array $params = null)
     {
-        $stmt = $this->db->prepare($query);
-        $stmt->execute($params);
+        $this->stmt($query, $params);
     }
 
     /**
@@ -43,14 +66,14 @@ class Model
      * @param string $query
      * @param array|null $params
      * @return array
+     * @throws \PDOException
      */
     protected function queryRows(string $query, ?array $params = null): array
     {
-        $stmt = $this->db->prepare($query);
-        $stmt->execute($params);
+        $stmt = $this->stmt($query, $params);
         $rows = $stmt->fetchAll($this->db::FETCH_ASSOC);
         $stmt->closeCursor();
-        return $rows ?? [];
+        return $rows;
     }
 
     /**
@@ -59,11 +82,11 @@ class Model
      * @param string $query
      * @param array|null $params
      * @return array
+     * @throws \PDOException
      */
     protected function queryRow(string $query, ?array $params = null): array
     {
         $rows = $this->queryRows($query, $params);
-
         $row = reset($rows);
         if ($row !== false) {
             return $row;
@@ -77,13 +100,15 @@ class Model
      * @param string $query
      * @param array|null $params
      * @return mixed
+     * @throws \PDOException
      */
     protected function queryColumn(string $query, ?array $params = null) /*: mixed */
     {
-        $stmt = $this->db->prepare($query);
-        $stmt->execute($params);
-        $value = $stmt->fetchColumn();
-        $stmt->closeCursor();
-        return $value;
+        $row = $this->queryRow($query, $params);
+        $value = reset($row);
+        if ($value !== false) {
+            return $value;
+        }
+        return null;
     }
 }

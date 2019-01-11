@@ -4,7 +4,11 @@ declare(strict_types=1);
 use Slim\App;
 use Slim\Container;
 use GuzzleHttp\Client as GuzzleClient;
-use Vetero\Api\ApiFactory;
+use Monolog\Logger;
+use Monolog\Handler\ErrorLogHandler;
+use Monolog\Formatter\LineFormatter;
+use Vetero\Api\DarkSkyApi;
+use Vetero\Api\GeoNamesApi;
 use Vetero\Controllers\WeatherController;
 use Vetero\Middleware\AuthorizationMiddleware;
 use Vetero\Models\AuthorizationModel;
@@ -35,8 +39,25 @@ $c['GuzzleClient'] = function (Container $c): GuzzleClient {
     ]);
 };
 
-$c['ApiFactory'] = function (Container $c): ApiFactory {
-    return new ApiFactory($c);
+$c['Logger'] = function (Container $c): Logger {
+    $debugLevel = (getenv('DEBUG') == 'true') ? Logger::DEBUG : Logger::ERROR;
+    $formatter = new LineFormatter(null, null, false, true);
+
+    $errorLogHandler = new ErrorLogHandler();
+    $errorLogHandler->setFormatter($formatter);
+    $errorLogHandler->setLevel($debugLevel);
+
+    $logger = new Logger('vetero-api');
+    $logger->pushHandler($errorLogHandler);
+    return $logger;
+};
+
+$c['DarkSkyApi'] = function (Container $c): DarkSkyApi {
+    return new DarkSkyApi($c);
+};
+
+$c['GeoNamesApi'] = function (Container $c): GeoNamesApi {
+    return new GeoNamesApi($c);
 };
 
 $c['WeatherController'] = function (Container $c): WeatherController {
