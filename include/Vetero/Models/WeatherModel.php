@@ -21,23 +21,19 @@ class WeatherModel extends Model
      *     "humidity" => 0.87,
      *     "precip_chance" => 0.9,
      *     "temperature" => 29,
+     *     "temperature_high" => 36,
+     *     "temperature_low" => 25,
      *     "wind_speed" => 15,
      *     "wind_bearing" => 292,
      *     "time" => 1547087718,
      *     "forecast" => [
      *         0 => [
      *             "description" => "snow",
-     *             "temperature_high" => 36,
-     *             "temperature_low" => 25,
-     *             "time" => 1547010000
-     *         ],
-     *         1 => [
-     *             "description" => "snow",
      *             "temp_high" => 26,
      *             "temp_low" => 15,
      *             "time" => 1547096400
      *         ],
-     *         2 => [
+     *         1 => [
      *             "description" => "partly-cloudy-day",
      *             "temp_high" => 21,
      *             "temp_low" => 17,
@@ -145,13 +141,15 @@ class WeatherModel extends Model
             'humidity' => round($current['humidity'], 2),
             'precip_chance' => round($current['precipProbability'], 2),
             'temperature' => (int)round($current['temperature']),
+            'temperature_high' => (int)round($response['daily']['data'][0]['temperatureHigh']),
+            'temperature_low' => (int)round($response['daily']['data'][0]['temperatureLow']),
             'wind_speed' => (int)round($current['windSpeed']),
             'wind_bearing' => ($current['windSpeed'] > 0) ? $current['windBearing'] : null,
             'time' => (int)$current['time']
         ];
 
         $maxDays = 5;
-        for ($i = 0; $i < $maxDays; $i++) {
+        for ($i = 1; $i <= $maxDays; $i++) {
             $daily = $response['daily']['data'][$i];
             $weather['forecast'][] = [
                 'description' => $daily['icon'],
